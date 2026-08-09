@@ -1,10 +1,12 @@
 import { io, Socket } from 'socket.io-client';
+import { API_BASE_URL } from './config';
 
 let socket: Socket | null = null;
 
 export function getSocket(token: string): Socket {
   if (!socket) {
-    socket = io(window.location.origin, {
+    const targetUrl = API_BASE_URL || window.location.origin;
+    socket = io(targetUrl, {
       auth: { token },
       autoConnect: true,
       reconnection: true,

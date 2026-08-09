@@ -1,6 +1,7 @@
 import { RegisterPayload, LoginPayload, RecoverPayload, AuthResponse, User } from '../types/auth';
+import { API_BASE_URL } from './config';
 
-const API_BASE = '/api/auth';
+const API_BASE = `${API_BASE_URL}/api/auth`;
 
 function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem('ourverse_token');
