@@ -96,8 +96,6 @@ export class GuardianJobQueue {
    * Fetches and processes the next highest-priority pending or retrying job.
    */
   public async processNextBatch(batchSize: number = 5) {
-    if (!this.isProcessing) return;
-
     const nowMargin = new Date(Date.now() + 1000);
 
     // Fetch pending or retrying jobs scheduled for now or earlier
