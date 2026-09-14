@@ -99,6 +99,10 @@ export const UniverseChat: React.FC<UniverseChatProps> = ({ universeId, dbUniver
     checkPresence();
   }, [dbUniverseId, peerUser.id]);
 
+  const peerUserId = peerUser.id;
+  const peerUsername = peerUser.username;
+  const currentUserId = user?.id;
+
   // 3. Socket.IO Real-Time Connection & Event Handling
   useEffect(() => {
     if (!token || !dbUniverseId) return;
@@ -117,7 +121,7 @@ export const UniverseChat: React.FC<UniverseChatProps> = ({ universeId, dbUniver
         });
 
         // If message is from peer, mark read immediately
-        if (user && newMsg.senderId !== user.id) {
+        if (currentUserId && newMsg.senderId !== currentUserId) {
           socket.emit('mark_read', { universeId: dbUniverseId, messageIds: [newMsg.id] });
         }
       }
@@ -164,26 +168,26 @@ export const UniverseChat: React.FC<UniverseChatProps> = ({ universeId, dbUniver
 
     // Listen for Presence Updates
     const handleUserOnline = (data: { userId: string; universeId: string }) => {
-      if (data.universeId === dbUniverseId && data.userId === peerUser.id) {
+      if (data.universeId === dbUniverseId && data.userId === peerUserId) {
         setPeerPresence({ isOnline: true, lastSeen: new Date().toISOString() });
       }
     };
 
     const handleUserOffline = (data: { userId: string; universeId: string; lastSeen: string | null }) => {
-      if (data.universeId === dbUniverseId && data.userId === peerUser.id) {
+      if (data.universeId === dbUniverseId && data.userId === peerUserId) {
         setPeerPresence({ isOnline: false, lastSeen: data.lastSeen });
       }
     };
 
     // Listen for Typing Indicators
     const handleTypingStarted = (data: { universeId: string; username: string }) => {
-      if (data.universeId === dbUniverseId && data.username === peerUser.username) {
+      if (data.universeId === dbUniverseId && data.username === peerUsername) {
         setIsPeerTyping(true);
       }
     };
 
     const handleTypingStopped = (data: { universeId: string; username: string }) => {
-      if (data.universeId === dbUniverseId && data.username === peerUser.username) {
+      if (data.universeId === dbUniverseId && data.username === peerUsername) {
         setIsPeerTyping(false);
       }
     };
@@ -244,7 +248,7 @@ export const UniverseChat: React.FC<UniverseChatProps> = ({ universeId, dbUniver
       socket.off('reaction_added', handleReactionAdded);
       socket.off('reaction_removed', handleReactionRemoved);
     };
-  }, [token, dbUniverseId, peerUser.id, peerUser.username, user]);
+  }, [token, dbUniverseId, peerUserId, peerUsername, currentUserId]);
 
   // Auto Scroll to bottom on new message
   useEffect(() => {

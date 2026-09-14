@@ -4,7 +4,6 @@ import prisma from '../db/prisma.js';
 import { authenticateToken, AuthRequest } from '../middleware/authMiddleware.js';
 import { invitationLimiter } from '../middleware/rateLimiter.js';
 import { generateUniverseId } from '../utils/universeIdGen.js';
-import guardianEventBus from '../guardian/eventBus.js';
 
 const router = Router();
 
@@ -273,9 +272,6 @@ router.post('/accept', authenticateToken, async (req: AuthRequest, res: Response
 
       return newUniverse;
     });
-
-    // Publish UniverseCreated event to Guardian Infrastructure asynchronously
-    guardianEventBus.publish('UniverseCreated', { universeId: result.id });
 
     return res.status(200).json({
       message: 'Universe created successfully',

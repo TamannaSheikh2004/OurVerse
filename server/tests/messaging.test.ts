@@ -1,9 +1,16 @@
+process.env.NODE_ENV = 'test';
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
+import { io as ioClient, Socket as ClientSocket } from 'socket.io-client';
+import jwt from 'jsonwebtoken';
 import prisma from '../db/prisma.js';
 import messageService from '../services/messageService.js';
 import presenceService from '../services/presenceService.js';
 import { generateMessageId } from '../utils/messageIdGen.js';
+import { setupSocketHandlers } from '../socket/socketHandler.js';
+import app from '../index.js';
 
 describe('Sprint 4.0: Real-Time Messaging Infrastructure Suite', () => {
   let userA: any;
@@ -12,13 +19,13 @@ describe('Sprint 4.0: Real-Time Messaging Infrastructure Suite', () => {
   let testUniverse: any;
 
   before(async () => {
-    // Clean database tables before testing
-    await prisma.messageReaction.deleteMany({});
-    await prisma.readReceipt.deleteMany({});
-    await prisma.message.deleteMany({});
-    await prisma.universeMember.deleteMany({});
-    await prisma.universe.deleteMany({});
-    await prisma.user.deleteMany({});
+    // Clean specific messaging test records before testing
+    await prisma.messageReaction.deleteMany({ where: { user: { username: { startsWith: 'msg_user_' } } } });
+    await prisma.readReceipt.deleteMany({ where: { user: { username: { startsWith: 'msg_user_' } } } });
+    await prisma.message.deleteMany({ where: { universe: { universeId: 'UVR-TESTMSG1' } } });
+    await prisma.universeMember.deleteMany({ where: { universe: { universeId: 'UVR-TESTMSG1' } } });
+    await prisma.universe.deleteMany({ where: { universeId: 'UVR-TESTMSG1' } });
+    await prisma.user.deleteMany({ where: { username: { startsWith: 'msg_user_' } } });
 
     // Create Test Users
     userA = await prisma.user.create({
@@ -64,12 +71,12 @@ describe('Sprint 4.0: Real-Time Messaging Infrastructure Suite', () => {
   });
 
   after(async () => {
-    await prisma.messageReaction.deleteMany({});
-    await prisma.readReceipt.deleteMany({});
-    await prisma.message.deleteMany({});
-    await prisma.universeMember.deleteMany({});
-    await prisma.universe.deleteMany({});
-    await prisma.user.deleteMany({});
+    await prisma.messageReaction.deleteMany({ where: { user: { username: { startsWith: 'msg_user_' } } } });
+    await prisma.readReceipt.deleteMany({ where: { user: { username: { startsWith: 'msg_user_' } } } });
+    await prisma.message.deleteMany({ where: { universe: { universeId: 'UVR-TESTMSG1' } } });
+    await prisma.universeMember.deleteMany({ where: { universe: { universeId: 'UVR-TESTMSG1' } } });
+    await prisma.universe.deleteMany({ where: { universeId: 'UVR-TESTMSG1' } });
+    await prisma.user.deleteMany({ where: { username: { startsWith: 'msg_user_' } } });
   });
 
   it('1. Utility: Should generate custom readable Message ID (MSG-XXXXXXXX)', () => {
@@ -283,5 +290,89 @@ describe('Sprint 4.0: Real-Time Messaging Infrastructure Suite', () => {
     assert.strictEqual(isTotalOffline, true);
     assert.strictEqual(presenceService.isUserOnline(userA.id), false);
     assert.ok(presenceService.getLastSeen(userA.id));
+  });
+
+  it('13. Real-Time Two-User WebSocket Delivery: User A and User B receive real-time message_created events bidirectionally over Socket.IO', async () => {
+    const testServer = http.createServer(app);
+    const testIo = new SocketIOServer(testServer, { cors: { origin: '*' } });
+    setupSocketHandlers(testIo);
+
+    await new Promise<void>((resolve) => {
+      testServer.listen(0, () => resolve());
+    });
+
+    const addr = testServer.address() as any;
+    const port = addr.port;
+
+    const JWT_SECRET = process.env.JWT_SECRET || 'ourverse-secret-key-change-in-production';
+    const tokenA = jwt.sign({ userId: userA.id, username: userA.username }, JWT_SECRET);
+    const tokenB = jwt.sign({ userId: userB.id, username: userB.username }, JWT_SECRET);
+
+    const clientA: ClientSocket = ioClient(`http://localhost:${port}`, {
+      auth: { token: tokenA },
+      transports: ['websocket'],
+    });
+
+    const clientB: ClientSocket = ioClient(`http://localhost:${port}`, {
+      auth: { token: tokenB },
+      transports: ['websocket'],
+    });
+
+    // Wait for both sockets to connect
+    await Promise.all([
+      new Promise<void>((resolve) => {
+        if (clientA.connected) resolve();
+        else clientA.on('connect', resolve);
+      }),
+      new Promise<void>((resolve) => {
+        if (clientB.connected) resolve();
+        else clientB.on('connect', resolve);
+      }),
+    ]);
+
+    // Both clients join the Universe room
+    await new Promise<void>((resolve) => {
+      clientA.emit('join_universe', { universeId: testUniverse.id }, () => resolve());
+    });
+
+    await new Promise<void>((resolve) => {
+      clientB.emit('join_universe', { universeId: testUniverse.id }, () => resolve());
+    });
+
+    // Direction 1: User A -> User B
+    const messagePromiseForB = new Promise<any>((resolve) => {
+      clientB.once('message_created', (msg) => resolve(msg));
+    });
+
+    clientA.emit('send_message', {
+      universeId: testUniverse.id,
+      content: 'Realtime hello from User A to User B',
+      type: 'TEXT',
+    });
+
+    const receivedByB = await messagePromiseForB;
+    assert.strictEqual(receivedByB.senderId, userA.id);
+    assert.strictEqual(receivedByB.content, 'Realtime hello from User A to User B');
+
+    // Direction 2: User B -> User A
+    const messagePromiseForA = new Promise<any>((resolve) => {
+      clientA.once('message_created', (msg) => resolve(msg));
+    });
+
+    clientB.emit('send_message', {
+      universeId: testUniverse.id,
+      content: 'Realtime reply from User B to User A',
+      type: 'TEXT',
+    });
+
+    const receivedByA = await messagePromiseForA;
+    assert.strictEqual(receivedByA.senderId, userB.id);
+    assert.strictEqual(receivedByA.content, 'Realtime reply from User B to User A');
+
+    // Disconnect test sockets and close test server & io
+    clientA.disconnect();
+    clientB.disconnect();
+    testIo.close();
+    await new Promise<void>((resolve) => testServer.close(() => resolve()));
   });
 });

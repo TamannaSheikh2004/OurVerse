@@ -1,6 +1,5 @@
 import prisma from '../db/prisma.js';
 import { generateMessageId } from '../utils/messageIdGen.js';
-import guardianEventBus from '../guardian/eventBus.js';
 
 export interface CreateMessageInput {
   universeId: string;
@@ -121,15 +120,6 @@ export class MessageService {
           }
         }
       }
-    });
-
-    // 5. Publish MessageCreated event to Guardian Event Bus asynchronously
-    guardianEventBus.publish('MessageCreated', {
-      universeId,
-      messageId: message.id,
-      senderId,
-      content: message.content,
-      data: { customMessageId: message.messageId }
     });
 
     return message;

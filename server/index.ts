@@ -7,8 +7,6 @@ import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import universeRoutes from './routes/universeRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
-import guardianObservabilityRoutes from './routes/guardianObservabilityRoutes.js';
-import { initializeGuardianInfrastructure } from './guardian/workerManager.js';
 import { setupSocketHandlers } from './socket/socketHandler.js';
 
 dotenv.config();
@@ -26,9 +24,6 @@ if (isProduction) {
     process.exit(1);
   }
 }
-
-// Initialize Event-Driven Guardian Infrastructure
-initializeGuardianInfrastructure();
 
 export const app = express();
 export const server = http.createServer(app);
@@ -94,9 +89,6 @@ app.use('/api/universe', universeRoutes);
 
 // Real-Time Messaging Routes
 app.use('/api/messages', messageRoutes);
-
-// Guardian Infrastructure Observability Routes
-app.use('/api/guardian/observability', guardianObservabilityRoutes);
 
 // 404 Handler
 app.use((req, res) => {

@@ -4,6 +4,13 @@ import { API_BASE_URL } from './config';
 let socket: Socket | null = null;
 
 export function getSocket(token: string): Socket {
+  const currentToken = socket?.auth && typeof socket.auth === 'object' ? (socket.auth as any).token : null;
+
+  if (socket && currentToken && currentToken !== token) {
+    socket.disconnect();
+    socket = null;
+  }
+
   if (!socket) {
     const targetUrl = API_BASE_URL || window.location.origin;
     socket = io(targetUrl, {
