@@ -140,7 +140,36 @@ describe('Sprint 4.0: Real-Time Messaging Infrastructure Suite', () => {
     assert.strictEqual(msg.senderId, userA.id);
     assert.strictEqual(msg.status, 'SENT');
     assert.strictEqual(msg.version, 1);
-    assert.strictEqual(msg.content, 'Hello &lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt; World!');
+    assert.strictEqual(msg.content, 'Hello &lt;script&gt;alert("xss")&lt;/script&gt; World!');
+  });
+
+  it('4b. Special Character Preservation & XSS Security: Should preserve punctuation and sanitize HTML tags accurately', async () => {
+    // Test standard punctuation (apostrophes, quotes, slashes, ampersands, semicolons)
+    const testCases = [
+      { input: "it's", expected: "it's" },
+      { input: '"hello"', expected: '"hello"' },
+      { input: "1234/'", expected: "1234/'" },
+      { input: 'a & b;', expected: 'a & b;' },
+      { input: '&lt;', expected: '&lt;' },
+      { input: '&#039;', expected: '&#039;' },
+      { input: '&amp;', expected: '&amp;' },
+      { input: '<script>alert(1)</script>', expected: '&lt;script&gt;alert(1)&lt;/script&gt;' },
+      { input: '<img src=x onerror=alert(1)>', expected: '&lt;img src=x onerror=alert(1)&gt;' },
+    ];
+
+    for (const tc of testCases) {
+      const msg = await messageService.createMessage({
+        universeId: testUniverse.id,
+        senderId: userA.id,
+        content: tc.input,
+      });
+
+      assert.strictEqual(msg.content, tc.expected);
+
+      // Verify editing preserves special characters without entity corruption
+      const editedMsg = await messageService.editMessage(msg.id, userA.id, tc.input + ' (edited)');
+      assert.strictEqual(editedMsg.content, tc.expected + ' (edited)');
+    }
   });
 
   it('5. Reply Foundation: Should store replyToMessageId when replying', async () => {

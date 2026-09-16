@@ -10,6 +10,7 @@ export interface SearchUserResult {
 }
 
 export interface PeerUser {
+  id?: string;
   username: string;
   displayName: string;
   avatar: string | null;
@@ -43,6 +44,7 @@ export interface UniverseListItem {
 }
 
 export interface UniverseMemberInfo {
+  id: string;
   username: string;
   displayName: string;
   avatar: string | null;

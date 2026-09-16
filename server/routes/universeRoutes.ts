@@ -513,11 +513,12 @@ router.get('/list', authenticateToken, async (req: AuthRequest, res: Response) =
       const peerMember = u.members.find((m) => m.user.id !== userId);
       const peerUser = peerMember
         ? {
+            id: peerMember.user.id,
             username: peerMember.user.username,
             displayName: peerMember.user.displayName || peerMember.user.username,
             avatar: peerMember.user.avatarUrl || null,
           }
-        : { username: 'Unknown', displayName: 'Unknown Explorer', avatar: null };
+        : { id: undefined, username: 'Unknown', displayName: 'Unknown Explorer', avatar: null };
 
       return {
         universeId: u.universeId,
@@ -577,6 +578,7 @@ router.get('/:universeId', authenticateToken, async (req: AuthRequest, res: Resp
     }
 
     const members = universe.members.map((m) => ({
+      id: m.user.id,
       username: m.user.username,
       displayName: m.user.displayName || m.user.username,
       avatar: m.user.avatarUrl || null,

@@ -26,11 +26,8 @@ export class MessageService {
   private sanitizeContent(content: string): string {
     if (!content) return '';
     return content
-      .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;')
       .trim();
   }
 

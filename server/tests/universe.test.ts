@@ -218,6 +218,7 @@ describe('OurVerse Sprint 2 - Universe Connection Engine E2E Suite', () => {
     assert.strictEqual(alphaList.length, 1);
     assert.strictEqual(alphaList[0].universeId, createdUniverseId);
     assert.strictEqual(alphaList[0].peerUser.username, user2.username);
+    assert.strictEqual(alphaList[0].peerUser.id, user2.id);
 
     const betaListRes = await fetch(`${baseUrl}/api/universe/list`, {
       headers: { Authorization: `Bearer ${user2.token}` },
@@ -227,6 +228,7 @@ describe('OurVerse Sprint 2 - Universe Connection Engine E2E Suite', () => {
     assert.strictEqual(betaList.length, 1);
     assert.strictEqual(betaList[0].universeId, createdUniverseId);
     assert.strictEqual(betaList[0].peerUser.username, user1.username);
+    assert.strictEqual(betaList[0].peerUser.id, user1.id);
   });
 
   test('Fetch Single Universe Details', async () => {
@@ -237,6 +239,8 @@ describe('OurVerse Sprint 2 - Universe Connection Engine E2E Suite', () => {
     assert.strictEqual(detailsRes.status, 200);
     assert.strictEqual(details.universeId, createdUniverseId);
     assert.strictEqual(details.members.length, 2);
+    assert.ok(details.members[0].id);
+    assert.ok(details.members[1].id);
   });
 
   test('Reject Invitation Flow with Gamma', async () => {
