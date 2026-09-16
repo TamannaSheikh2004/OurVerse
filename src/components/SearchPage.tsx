@@ -88,11 +88,13 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onEnterUniverse, onInvit
             <Search className="w-5 h-5" />
           </div>
           <input
+            id="search-users-input"
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by reserved username (e.g. starlight_explorer)..."
-            className="w-full pl-12 pr-4 py-3.5 rounded-2xl glass-input text-sm font-mono placeholder:text-slate-500 focus:ring-0 shadow-lg"
+            aria-label="Search by reserved username"
+            className="w-full pl-12 pr-4 py-3.5 rounded-2xl glass-input text-sm font-mono placeholder:text-slate-400 shadow-lg"
           />
           {isSearching && (
             <div className="absolute inset-y-0 right-0 pt-2 pr-4 flex items-center">
@@ -221,6 +223,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onEnterUniverse, onInvit
 
               <button
                 onClick={() => setSelectedUser(null)}
+                aria-label="Close modal"
                 className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
               >
                 <X className="w-4 h-4" />

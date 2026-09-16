@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String   @id @default(uuid()) @map("_id")
+  username              String   @unique
+  passwordHash          String
+  recoveryKeyHash       String
+  displayName           String?
+  avatarUrl             String?
+  allowUniverseRequests String   @default("EVERYONE") // EVERYONE, NOBODY
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  memberships         UniverseMember[]
+  sentInvitations     UniverseInvitation[] @relation("SentInvitations")
+  receivedInvitations UniverseInvitation[] @relation("ReceivedInvitations")
+  blockedUsers        BlockedUser[]        @relation("BlockedUsers")
+  blockedByUsers      BlockedUser[]        @relation("BlockedByUsers")
+  messages            Message[]            @relation("SentMessages")
+  reactions           MessageReaction[]    @relation("UserReactions")
+  readReceipts        ReadReceipt[]        @relation("UserReadReceipts")
+}
+
+model ReservedUsername {
+  username       String   @id @map("_id")
+  reservedAt     DateTime @default(now())
+  originalUserId String?
+  reason         String   @default("REGISTERED")
+}
+
+model Universe {
+  id         String   @id @default(uuid()) @map("_id")
+  universeId String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  members  UniverseMember[]
+  messages Message[]
+}
+
+model UniverseMember {
+  id         String   @id @default(uuid()) @map("_id")
+  universeId String
+  userId     String
+  joinedAt   DateTime @default(now())
+
+  universe Universe @relation(fields: [universeId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([universeId, userId])
+  @@index([userId])
+  @@index([universeId])
+}
+
+model UniverseInvitation {
+  id          String    @id @default(uuid()) @map("_id")
+  senderId    String
+  receiverId  String
+  status      String    @default("PENDING") // PENDING, ACCEPTED, REJECTED, BLOCKED, EXPIRED
+  createdAt   DateTime  @default(now())
+  respondedAt DateTime?
+  expiresAt   DateTime
+
+  sender   User @relation("SentInvitations", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedInvitations", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+}
+
+model BlockedUser {
+  id        String   @id @default(uuid()) @map("_id")
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("BlockedUsers", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlockedByUsers", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+}
+
+model Message {
+  id               String            @id @default(uuid()) @map("_id")
+  messageId        String            @unique
+  universeId       String
+  senderId         String
+  type             String            @default("TEXT") // TEXT, IMAGE, VIDEO, FILE, VOICE, LOCATION, SYSTEM
+  content          String
+  metadata         String            @default("{}") // Flexible JSON string
+  replyToMessageId String?
+  version          Int               @default(1)
+  createdAt        DateTime          @default(now())
+  editedAt         DateTime?
+  deletedAt        DateTime?
+  status           String            @default("SENT") // SENT, DELIVERED, READ, DELETED
+
+  universe     Universe          @relation(fields: [universeId], references: [id], onDelete: Cascade)
+  sender       User              @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo      Message?          @relation("MessageReplies", fields: [replyToMessageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies      Message[]         @relation("MessageReplies")
+  reactions    MessageReaction[]
+  readReceipts ReadReceipt[]
+
+  @@index([universeId, createdAt])
+  @@index([senderId])
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid()) @map("_id")
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation("UserReactions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+}
+
+model ReadReceipt {
+  id        String   @id @default(uuid()) @map("_id")
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation("UserReadReceipts", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+}

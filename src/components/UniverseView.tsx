@@ -8,9 +8,10 @@ import { ArrowLeft, Orbit, Users, ShieldCheck } from 'lucide-react';
 interface UniverseViewProps {
   universeId: string;
   onBack: () => void;
+  onClearUnread?: (universeId: string, dbUniverseId?: string) => void;
 }
 
-export const UniverseView: React.FC<UniverseViewProps> = ({ universeId, onBack }) => {
+export const UniverseView: React.FC<UniverseViewProps> = ({ universeId, onBack, onClearUnread }) => {
   const { user: currentUser } = useAuth();
   const [details, setDetails] = useState<UniverseDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -23,6 +24,9 @@ export const UniverseView: React.FC<UniverseViewProps> = ({ universeId, onBack }
         setError(null);
         const data = await fetchUniverseDetails(universeId);
         setDetails(data);
+        if (onClearUnread) {
+          onClearUnread(data.universeId, data.id);
+        }
       } catch (err: any) {
         setError(err.message || 'Failed to load Universe details');
       } finally {
@@ -30,7 +34,7 @@ export const UniverseView: React.FC<UniverseViewProps> = ({ universeId, onBack }
       }
     }
     loadDetails();
-  }, [universeId]);
+  }, [universeId, onClearUnread]);
 
   if (isLoading) {
     return (
@@ -61,26 +65,27 @@ export const UniverseView: React.FC<UniverseViewProps> = ({ universeId, onBack }
   const peerMember = details.members.find((m) => m.username !== currentUser?.username) || details.members[0];
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in pb-12">
+    <div className="w-full max-w-5xl mx-auto space-y-4 sm:space-y-6 animate-fade-in pb-8 sm:pb-12">
       
       {/* Top Navigation Back Action & Mutual Consent Badge */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <button
           onClick={onBack}
-          className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold flex items-center gap-2 transition-all hover:text-white"
+          className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold flex items-center gap-2 transition-all hover:text-white"
         >
           <ArrowLeft className="w-4 h-4 text-indigo-400" />
           <span>Back to Dashboard</span>
         </button>
 
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-mono">
+        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-mono shrink-0">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-          <span>MUTUAL CONSENT VERIFIED</span>
+          <span className="hidden xs:inline">MUTUAL CONSENT VERIFIED</span>
+          <span className="xs:hidden">VERIFIED</span>
         </div>
       </div>
 
       {/* Main Universe Hero Banner */}
-      <div className="relative rounded-3xl glass-panel glass-panel-glow p-6 sm:p-8 overflow-hidden shadow-2xl border border-white/10 space-y-6">
+      <div className="relative rounded-3xl glass-panel glass-panel-glow p-4 sm:p-8 overflow-hidden shadow-2xl border border-white/10 space-y-4 sm:space-y-6">
         <div className="absolute top-0 right-0 w-96 h-96 nebula-cyan rounded-full blur-3xl opacity-30 pointer-events-none" />
 
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">

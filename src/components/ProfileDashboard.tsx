@@ -139,7 +139,7 @@ export const ProfileDashboard: React.FC = () => {
                 value={customAvatar}
                 onChange={(e) => setCustomAvatar(e.target.value)}
                 placeholder="Custom Image URL"
-                className="w-full px-4 py-2.5 rounded-xl glass-input text-sm placeholder:text-slate-600"
+                className="w-full px-4 py-2.5 rounded-xl glass-input text-sm placeholder:text-slate-400"
               />
             </div>
           </div>

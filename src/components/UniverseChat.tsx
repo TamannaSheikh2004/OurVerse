@@ -50,10 +50,70 @@ export const UniverseChat: React.FC<UniverseChatProps> = ({ universeId, dbUniver
   const [isPeerTyping, setIsPeerTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Active editing / reaction state
+  // Active editing / reaction / deletion state
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [activeEmojiPickerId, setActiveEmojiPickerId] = useState<string | null>(null);
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+
+  // Socket.IO Connection Status State
+  const [socketStatus, setSocketStatus] = useState<'connected' | 'reconnecting' | 'disconnected'>(() => {
+    if (!token) return 'disconnected';
+    const sock = getSocket(token);
+    return sock.connected ? 'connected' : 'reconnecting';
+  });
+
+  // Observe Socket.IO Connection Events (without creating new sockets or modifying reconnect behavior)
+  useEffect(() => {
+    if (!token) {
+      setSocketStatus('disconnected');
+      return;
+    }
+
+    const socket = getSocket(token);
+
+    const handleConnect = () => setSocketStatus('connected');
+    const handleDisconnect = () => setSocketStatus('disconnected');
+    const handleReconnectAttempt = () => setSocketStatus('reconnecting');
+    const handleConnectError = () => setSocketStatus('reconnecting');
+
+    if (socket.connected) {
+      setSocketStatus('connected');
+    } else {
+      setSocketStatus('reconnecting');
+    }
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('connect_error', handleConnectError);
+
+    const manager = socket.io;
+    if (manager) {
+      manager.on('reconnect_attempt', handleReconnectAttempt);
+      manager.on('reconnect_failed', handleDisconnect);
+    }
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('connect_error', handleConnectError);
+      if (manager) {
+        manager.off('reconnect_attempt', handleReconnectAttempt);
+        manager.off('reconnect_failed', handleDisconnect);
+      }
+    };
+  }, [token]);
+
+  // Close delete confirmation on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && deletingMessageId) {
+        setDeletingMessageId(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [deletingMessageId]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -350,39 +410,39 @@ export const UniverseChat: React.FC<UniverseChatProps> = ({ universeId, dbUniver
     : messages;
 
   return (
-    <div className="w-full flex flex-col h-[700px] rounded-3xl glass-panel glass-panel-glow border border-white/10 overflow-hidden shadow-2xl relative">
+    <div className="w-full flex flex-col h-[500px] sm:h-[600px] lg:h-[680px] min-h-[400px] rounded-3xl glass-panel glass-panel-glow border border-white/10 overflow-hidden shadow-2xl relative">
       
       {/* Header bar */}
-      <div className="px-6 py-4 border-b border-white/10 bg-[#07090E]/80 backdrop-blur-xl flex items-center justify-between z-10">
-        <div className="flex items-center gap-3">
+      <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-white/10 bg-[#07090E]/80 backdrop-blur-xl flex items-center justify-between z-10 shrink-0 gap-2">
+        <div className="flex items-center gap-3 min-w-0">
           {/* Peer Avatar */}
-          <div className="relative">
+          <div className="relative shrink-0">
             {peerUser.avatar ? (
               <img
                 src={peerUser.avatar}
                 alt={peerUser.displayName}
-                className="w-10 h-10 rounded-xl object-cover ring-1 ring-cyan-500/40"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl object-cover ring-1 ring-cyan-500/40"
               />
             ) : (
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm ring-1 ring-cyan-500/40">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-xs sm:text-sm ring-1 ring-cyan-500/40">
                 {peerUser.displayName.charAt(0).toUpperCase()}
               </div>
             )}
             {/* Presence Badge */}
             <span
-              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#07090E] ${
+              className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border-2 border-[#07090E] ${
                 peerPresence.isOnline ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-slate-500'
               }`}
             />
           </div>
 
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-white tracking-tight">{peerUser.displayName}</h3>
-              <span className="text-[10px] font-mono text-cyan-400 font-semibold">@{peerUser.username}</span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <h3 className="text-xs sm:text-sm font-bold text-white tracking-tight truncate">{peerUser.displayName}</h3>
+              <span className="text-[10px] font-mono text-cyan-400 font-semibold truncate">@{peerUser.username}</span>
             </div>
 
-            <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
+            <div className="text-[10px] sm:text-[11px] text-slate-400 font-mono flex items-center gap-1.5 truncate">
               {isPeerTyping ? (
                 <span className="text-indigo-400 font-semibold animate-pulse flex items-center gap-1">
                   <Sparkles className="w-3 h-3" /> is typing...
@@ -398,8 +458,32 @@ export const UniverseChat: React.FC<UniverseChatProps> = ({ universeId, dbUniver
           </div>
         </div>
 
-        {/* Search Bar & Action Toggle */}
-        <div className="flex items-center gap-2">
+        {/* Search Bar, Connection Status & Action Toggle */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Socket.IO Connection Status Badge */}
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] sm:text-[11px] font-mono shrink-0"
+            title={`Socket Connection: ${socketStatus}`}
+            aria-label={`Socket Connection: ${socketStatus}`}
+          >
+            {socketStatus === 'connected' ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+                <span className="text-slate-300 font-medium hidden xs:inline">Connected</span>
+              </>
+            ) : socketStatus === 'reconnecting' ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                <span className="text-amber-300 font-medium">Reconnecting…</span>
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                <span className="text-rose-400 font-medium">Disconnected</span>
+              </>
+            )}
+          </div>
+
           {isSearching ? (
             <div className="relative flex items-center">
               <input
@@ -407,7 +491,7 @@ export const UniverseChat: React.FC<UniverseChatProps> = ({ universeId, dbUniver
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search messages..."
-                className="w-48 sm:w-64 px-3 py-1.5 text-xs rounded-xl bg-white/5 border border-cyan-500/30 text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                className="w-32 xs:w-48 sm:w-64 px-3 py-1.5 text-xs rounded-xl bg-white/5 border border-cyan-500/30 text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 autoFocus
               />
               <button
@@ -415,7 +499,7 @@ export const UniverseChat: React.FC<UniverseChatProps> = ({ universeId, dbUniver
                   setIsSearching(false);
                   setSearchQuery('');
                 }}
-                className="absolute right-2 text-slate-400 hover:text-white"
+                className="absolute right-2 text-slate-400 hover:text-white focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none rounded-md"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -430,14 +514,14 @@ export const UniverseChat: React.FC<UniverseChatProps> = ({ universeId, dbUniver
             </button>
           )}
 
-          <div className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-[11px] font-mono font-bold">
+          <div className="px-2.5 py-1 sm:px-3 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-[10px] sm:text-[11px] font-mono font-bold shrink-0 truncate max-w-[120px] sm:max-w-none">
             {universeId}
           </div>
         </div>
       </div>
 
       {/* Message Chat Body Stream */}
-      <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 custom-scrollbar">
+      <div className="flex-1 pt-12 sm:pt-14 pb-3.5 sm:pb-6 px-3.5 sm:px-6 overflow-y-auto space-y-4 custom-scrollbar">
         {/* Load More Button */}
         {hasMore && (
           <div className="text-center py-2">
@@ -492,6 +576,7 @@ export const UniverseChat: React.FC<UniverseChatProps> = ({ universeId, dbUniver
                         onClick={() => setActiveEmojiPickerId(activeEmojiPickerId === msg.id ? null : msg.id)}
                         className="p-1.5 rounded-lg hover:bg-white/10 text-slate-300 hover:text-cyan-300 transition-colors"
                         title="Add Reaction"
+                        aria-label="Add Reaction"
                       >
                         <Smile className="w-3.5 h-3.5" />
                       </button>
@@ -505,13 +590,15 @@ export const UniverseChat: React.FC<UniverseChatProps> = ({ universeId, dbUniver
                             }}
                             className="p-1.5 rounded-lg hover:bg-white/10 text-slate-300 hover:text-indigo-300 transition-colors"
                             title="Edit Message"
+                            aria-label="Edit Message"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => handleDeleteMessage(msg.id)}
+                            onClick={() => setDeletingMessageId(msg.id)}
                             className="p-1.5 rounded-lg hover:bg-white/10 text-slate-300 hover:text-rose-400 transition-colors"
                             title="Delete Message"
+                            aria-label="Delete Message"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -522,12 +609,18 @@ export const UniverseChat: React.FC<UniverseChatProps> = ({ universeId, dbUniver
 
                   {/* Emoji Quick Picker Dropdown */}
                   {activeEmojiPickerId === msg.id && (
-                    <div className="absolute top-0 -translate-y-full mb-2 p-2 rounded-2xl bg-[#0F1420] border border-white/20 shadow-2xl flex items-center gap-1.5 z-30 animate-fade-in">
+                    <div
+                      className={`absolute top-0 -translate-y-full mb-2 p-2 rounded-2xl bg-[#0F1420] border border-white/20 shadow-2xl flex items-center gap-1.5 z-30 animate-fade-in max-w-[calc(100vw-3rem)] sm:max-w-none flex-wrap justify-center sm:flex-nowrap ${
+                        isMe ? 'right-0' : 'left-0'
+                      }`}
+                    >
                       {COMMON_EMOJIS.map((emoji) => (
                         <button
                           key={emoji}
+                          type="button"
                           onClick={() => handleToggleEmoji(msg.id, emoji)}
-                          className="hover:scale-125 transition-transform text-base p-1"
+                          aria-label={`React with ${emoji}`}
+                          className="hover:scale-125 transition-transform text-base p-1 focus:outline-none focus:ring-1 focus:ring-cyan-400 rounded-lg"
                         >
                           {emoji}
                         </button>
@@ -634,24 +727,76 @@ export const UniverseChat: React.FC<UniverseChatProps> = ({ universeId, dbUniver
       {/* Message Input Footer Form */}
       <form
         onSubmit={handleSendMessage}
-        className="p-4 border-t border-white/10 bg-[#07090E]/90 backdrop-blur-xl flex items-center gap-3 z-10"
+        className="p-3 sm:p-4 border-t border-white/10 bg-[#07090E]/90 backdrop-blur-xl flex items-center gap-2 sm:gap-3 z-10 shrink-0"
       >
         <input
           type="text"
           value={inputContent}
           onChange={handleInputChange}
           placeholder={`Message @${peerUser.username} in Shared Universe...`}
-          className="flex-1 px-4 py-3 text-xs rounded-2xl bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all"
+          className="flex-1 min-w-0 px-3.5 py-2.5 sm:px-4 sm:py-3 text-xs rounded-2xl bg-white/5 border border-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all"
         />
 
         <button
           type="submit"
           disabled={!inputContent.trim()}
-          className="p-3 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 text-white shadow-lg shadow-indigo-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0"
+          aria-label="Send message"
+          className="p-2.5 sm:p-3 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 text-white shadow-lg shadow-indigo-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
         >
           <Send className="w-4 h-4" />
         </button>
       </form>
+
+      {/* Delete Message Confirmation Modal */}
+      {deletingMessageId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in"
+          onClick={() => setDeletingMessageId(null)}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-3xl glass-panel p-6 space-y-4 border border-rose-500/30 shadow-2xl bg-[#07090E]/95"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-message-dialog-title"
+            aria-describedby="delete-message-dialog-desc"
+          >
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-400" />
+              </div>
+              <h3 id="delete-message-dialog-title" className="text-base font-bold text-white tracking-tight">
+                Delete Message?
+              </h3>
+            </div>
+
+            <p id="delete-message-dialog-desc" className="text-xs text-slate-300 leading-relaxed">
+              Are you sure you want to delete this message? It will be removed for everyone in this Universe.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeletingMessageId(null)}
+                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400/50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleDeleteMessage(deletingMessageId);
+                  setDeletingMessageId(null);
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white shadow-lg shadow-rose-600/30 transition-all focus:outline-none focus:ring-2 focus:ring-rose-400/50"
+                autoFocus
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from './context/AuthContext';
+import { getSocket } from './api/socketClient';
 import { BackgroundStars } from './components/BackgroundStars';
 import { Navbar, NavTab } from './components/Navbar';
 import { AuthModal } from './components/AuthModal';
@@ -12,18 +13,91 @@ import { UniverseView } from './components/UniverseView';
 import { Orbit, ShieldCheck, Lock, Sparkles, KeyRound } from 'lucide-react';
 
 export const AppContent: React.FC = () => {
-  const { user, isLoading, recoveryKey, clearRecoveryKey } = useAuth();
+  const { user, token, isLoading, recoveryKey, clearRecoveryKey } = useAuth();
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
   const [selectedUniverseId, setSelectedUniverseId] = useState<string | null>(null);
 
+  // Phase 2E — Unread Message Indicator State
+  const [unreadUniverseIds, setUnreadUniverseIds] = useState<Set<string>>(new Set());
+  const [activeDbUniverseId, setActiveDbUniverseId] = useState<string | null>(null);
+  const activeUniverseRef = useRef<string | null>(null);
+  const activeDbUniverseRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    activeUniverseRef.current = selectedUniverseId;
+  }, [selectedUniverseId]);
+
+  useEffect(() => {
+    activeDbUniverseRef.current = activeDbUniverseId;
+  }, [activeDbUniverseId]);
+
+  const handleClearUnread = useCallback((universeId: string, dbUniverseId?: string) => {
+    if (dbUniverseId) {
+      setActiveDbUniverseId(dbUniverseId);
+    }
+    setUnreadUniverseIds((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      if (next.has(universeId)) {
+        next.delete(universeId);
+        changed = true;
+      }
+      if (dbUniverseId && next.has(dbUniverseId)) {
+        next.delete(dbUniverseId);
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, []);
+
   const handleOpenUniverse = (universeId: string) => {
     setSelectedUniverseId(universeId);
+    handleClearUnread(universeId);
   };
 
   const handleBackToDashboard = () => {
     setSelectedUniverseId(null);
+    setActiveDbUniverseId(null);
     setCurrentTab('dashboard');
   };
+
+  // Phase 2E — Observe incoming message_created socket events to mark unread universes
+  useEffect(() => {
+    if (!token || !user) return;
+
+    const socket = getSocket(token);
+
+    const handleGlobalMessageCreated = (newMsg: any) => {
+      if (!newMsg || !newMsg.universeId) return;
+
+      const senderId = newMsg.senderId || newMsg.sender?.id;
+      if (senderId && user.id && senderId === user.id) {
+        return; // Ignore own messages
+      }
+
+      const currentActiveId = activeUniverseRef.current;
+      const currentActiveDbId = activeDbUniverseRef.current;
+      if (
+        (currentActiveId && newMsg.universeId === currentActiveId) ||
+        (currentActiveDbId && newMsg.universeId === currentActiveDbId)
+      ) {
+        return; // Currently viewing active universe
+      }
+
+      setUnreadUniverseIds((prev) => {
+        if (prev.has(newMsg.universeId)) return prev;
+        const next = new Set(prev);
+        next.add(newMsg.universeId);
+        return next;
+      });
+    };
+
+    socket.on('message_created', handleGlobalMessageCreated);
+
+    return () => {
+      socket.off('message_created', handleGlobalMessageCreated);
+    };
+  }, [token, user]);
 
   if (isLoading) {
     return (
@@ -42,8 +116,10 @@ export const AppContent: React.FC = () => {
       <BackgroundStars />
       <Navbar
         currentTab={selectedUniverseId ? 'dashboard' : currentTab}
+        hasUnreadUniverses={unreadUniverseIds.size > 0}
         onSelectTab={(tab) => {
           setSelectedUniverseId(null);
+          setActiveDbUniverseId(null);
           setCurrentTab(tab);
         }}
       />
@@ -65,6 +141,7 @@ export const AppContent: React.FC = () => {
               <UniverseView
                 universeId={selectedUniverseId}
                 onBack={handleBackToDashboard}
+                onClearUnread={handleClearUnread}
               />
             ) : (
               <>
@@ -72,6 +149,7 @@ export const AppContent: React.FC = () => {
                   <UniversesDashboard
                     onEnterUniverse={handleOpenUniverse}
                     onGoToSearch={() => setCurrentTab('search')}
+                    unreadUniverseIds={unreadUniverseIds}
                   />
                 )}
 

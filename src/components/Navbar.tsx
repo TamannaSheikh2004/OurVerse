@@ -8,9 +8,10 @@ export type NavTab = 'dashboard' | 'search' | 'invitations' | 'profile';
 interface NavbarProps {
   currentTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
+  hasUnreadUniverses?: boolean;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
+export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, hasUnreadUniverses }) => {
   const { user, logout } = useAuth();
   const [pendingCount, setPendingCount] = useState(0);
 
@@ -37,9 +38,11 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         
         {/* Brand Logo */}
-        <div
+        <button
+          type="button"
           onClick={() => user && onSelectTab('dashboard')}
-          className="flex items-center gap-3 cursor-pointer group shrink-0"
+          aria-label="OurVerse Home"
+          className="flex items-center gap-3 cursor-pointer group shrink-0 text-left focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none rounded-xl p-1"
         >
           <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 via-purple-600 to-cyan-500 p-0.5 shadow-lg shadow-indigo-500/20">
             <div className="w-full h-full bg-[#0F1523] rounded-[10px] flex items-center justify-center transition-transform group-hover:scale-95">
@@ -57,14 +60,15 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
             </div>
             <p className="text-[11px] text-slate-400 font-medium">Universe Connection Engine</p>
           </div>
-        </div>
+        </button>
 
         {/* Center Navigation Links for Authenticated Users */}
         {user && (
           <nav className="flex items-center gap-1 p-1 rounded-2xl bg-[#07090E]/80 border border-white/10 shadow-inner">
             <button
               onClick={() => onSelectTab('dashboard')}
-              className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              aria-label="Universes"
+              className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none ${
                 currentTab === 'dashboard'
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 font-bold'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
@@ -72,11 +76,15 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span className="hidden md:inline">Universes</span>
+              {hasUnreadUniverses && (
+                <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)] animate-pulse ml-0.5" title="Unread message activity" />
+              )}
             </button>
 
             <button
               onClick={() => onSelectTab('search')}
-              className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              aria-label="Search"
+              className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none ${
                 currentTab === 'search'
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 font-bold'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
@@ -88,7 +96,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
 
             <button
               onClick={() => onSelectTab('invitations')}
-              className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all relative ${
+              aria-label="Invitations"
+              className={`py-1.5 px-3 sm:px-4 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all relative focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none ${
                 currentTab === 'invitations'
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 font-bold'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
@@ -111,7 +120,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
             <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={() => onSelectTab('profile')}
-                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-medium text-slate-200 group ${
+                aria-label={`Profile for ${user.displayName}`}
+                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-medium text-slate-200 group focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none ${
                   currentTab === 'profile'
                     ? 'bg-white/10 border-indigo-400/50'
                     : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
@@ -137,7 +147,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               <button
                 onClick={logout}
                 title="Sign Out"
-                className="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/20 transition-all"
+                aria-label="Log out"
+                className="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/20 transition-all focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none"
               >
                 <LogOut className="w-4 h-4" />
               </button>

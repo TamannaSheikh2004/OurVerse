@@ -6,9 +6,10 @@ import { Orbit, Sparkles, ArrowRight, UserCheck, Calendar } from 'lucide-react';
 interface UniversesDashboardProps {
   onEnterUniverse: (universeId: string) => void;
   onGoToSearch: () => void;
+  unreadUniverseIds?: Set<string>;
 }
 
-export const UniversesDashboard: React.FC<UniversesDashboardProps> = ({ onEnterUniverse, onGoToSearch }) => {
+export const UniversesDashboard: React.FC<UniversesDashboardProps> = ({ onEnterUniverse, onGoToSearch, unreadUniverseIds }) => {
   const [universes, setUniverses] = useState<UniverseListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -97,23 +98,36 @@ export const UniversesDashboard: React.FC<UniversesDashboardProps> = ({ onEnterU
 
         /* UNIVERSES CARDS GRID */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {universes.map((item) => (
-            <div
-              key={item.universeId}
-              className="rounded-3xl glass-panel glass-panel-glow p-6 space-y-5 border border-white/10 hover:border-indigo-500/30 transition-all group flex flex-col justify-between"
-            >
-              <div className="space-y-4">
-                {/* Header Badge */}
-                <div className="flex items-center justify-between">
-                  <span className="px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] font-mono font-bold">
-                    {item.universeId}
-                  </span>
+          {universes.map((item) => {
+            const isUnread = Boolean(
+              unreadUniverseIds && unreadUniverseIds.has(item.universeId)
+            );
 
-                  <div className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
-                    <Calendar className="w-3 h-3 text-slate-500" />
-                    <span>{new Date(item.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+            return (
+              <div
+                key={item.universeId}
+                className="rounded-3xl glass-panel glass-panel-glow p-6 space-y-5 border border-white/10 hover:border-indigo-500/30 transition-all group flex flex-col justify-between"
+              >
+                <div className="space-y-4">
+                  {/* Header Badge */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] font-mono font-bold">
+                        {item.universeId}
+                      </span>
+                      {isUnread && (
+                        <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-[10px] font-mono font-bold flex items-center gap-1.5 animate-pulse">
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]" />
+                          <span>UNREAD</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
+                      <Calendar className="w-3 h-3 text-slate-500" />
+                      <span>{new Date(item.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                    </div>
                   </div>
-                </div>
 
                 {/* Peer Explorer Info */}
                 <div className="flex items-center gap-3.5">
@@ -148,7 +162,8 @@ export const UniversesDashboard: React.FC<UniversesDashboardProps> = ({ onEnterU
                 <span>Enter Universe</span>
               </button>
             </div>
-          ))}
+          );
+        })}
         </div>
       )}
 

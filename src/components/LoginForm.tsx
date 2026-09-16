@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Lock, LogIn, KeyRound } from 'lucide-react';
+import { formatAuthError } from '../api/authClient';
+import { User, Lock, LogIn, KeyRound, Eye, EyeOff } from 'lucide-react';
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -12,6 +13,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
   const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +22,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
     setError(null);
 
     if (!username.trim() || !password) {
-      setError('Please enter your username and password');
+      setError(formatAuthError('Please enter your username and password'));
       return;
     }
 
@@ -32,7 +34,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
       });
       if (onSuccess) onSuccess();
     } catch (err: any) {
-      setError(err.message || 'Invalid username or password');
+      setError(formatAuthError(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -48,7 +50,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
 
       {/* Username Field */}
       <div className="space-y-1.5">
-        <label className="text-xs font-mono font-medium text-slate-300">
+        <label htmlFor="login-username" className="text-xs font-mono font-medium text-slate-300">
           RESERVED USERNAME
         </label>
         <div className="relative">
@@ -56,12 +58,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
             <User className="w-4 h-4" />
           </div>
           <input
+            id="login-username"
+            name="username"
             type="text"
             required
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="e.g. starlight_explorer"
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-sm font-mono placeholder:text-slate-600 focus:ring-0"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-sm font-mono placeholder:text-slate-400"
           />
         </div>
       </div>
@@ -69,13 +73,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
       {/* Password Field */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-mono font-medium text-slate-300">
+          <label htmlFor="login-password" className="text-xs font-mono font-medium text-slate-300">
             PASSWORD
           </label>
           <button
             type="button"
             onClick={onSwitchToRecover}
-            className="text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1 font-medium"
+            className="text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1 font-medium focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none rounded-md px-1"
           >
             <KeyRound className="w-3 h-3" />
             <span>Use Recovery Key?</span>
@@ -86,13 +90,27 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
             <Lock className="w-4 h-4" />
           </div>
           <input
-            type="password"
+            id="login-password"
+            name="password"
+            type={showPassword ? 'text' : 'password'}
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-sm placeholder:text-slate-600"
+            className="w-full pl-10 pr-10 py-2.5 rounded-xl glass-input text-sm placeholder:text-slate-400"
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/50 rounded-lg focus:text-indigo-400"
+          >
+            {showPassword ? (
+              <EyeOff className="w-4 h-4" />
+            ) : (
+              <Eye className="w-4 h-4" />
+            )}
+          </button>
         </div>
       </div>
 
@@ -100,7 +118,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50 mt-2"
+        className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50 mt-2 focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07090E] focus-visible:outline-none"
       >
         {isSubmitting ? (
           <span>Authenticating Argon2id...</span>
@@ -117,7 +135,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
         <button
           type="button"
           onClick={onSwitchToRegister}
-          className="text-xs text-slate-400 hover:text-indigo-300 transition-colors"
+          className="text-xs text-slate-400 hover:text-indigo-300 transition-colors focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none rounded-md px-1"
         >
           New to OurVerse? <span className="text-indigo-400 underline font-semibold">Reserve Your Identity</span>
         </button>
