@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'ourverse_cosmic_jwt_secret_key_2026_super_secure';
+import { JWT_SECRET } from '../config/jwtConfig.js';
 
 export interface AuthRequest extends Request {
   user?: {

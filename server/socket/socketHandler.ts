@@ -3,6 +3,7 @@ import { socketAuthMiddleware, AuthenticatedSocket } from './socketAuth.js';
 import messageService from '../services/messageService.js';
 import presenceService from '../services/presenceService.js';
 import universeService from '../services/universeService.js';
+import { checkSocketRateLimit, cleanupSocketRateLimits } from './socketRateLimiter.js';
 
 export function setupSocketHandlers(io: Server) {
   // Use JWT authentication middleware
@@ -80,6 +81,13 @@ export function setupSocketHandlers(io: Server) {
     // 4. Client Event: send_message
     socket.on('send_message', async (data: any, callback?: Function) => {
       try {
+        if (!checkSocketRateLimit(socket.id, 'send_message', 15, 5000)) {
+          const errMsg = 'RATE_LIMIT_EXCEEDED: Sending messages too quickly';
+          socket.emit('error', { message: errMsg });
+          if (callback) callback({ error: errMsg });
+          return;
+        }
+
         const { universeId, content, type, metadata, replyToMessageId } = data || {};
         const message = await messageService.createMessage({
           universeId,
@@ -103,6 +111,13 @@ export function setupSocketHandlers(io: Server) {
     // 5. Client Event: edit_message
     socket.on('edit_message', async (data: { messageId: string; newContent: string }, callback?: Function) => {
       try {
+        if (!checkSocketRateLimit(socket.id, 'edit_message', 10, 5000)) {
+          const errMsg = 'RATE_LIMIT_EXCEEDED: Editing messages too quickly';
+          socket.emit('error', { message: errMsg });
+          if (callback) callback({ error: errMsg });
+          return;
+        }
+
         const { messageId, newContent } = data || {};
         const updatedMessage = await messageService.editMessage(messageId, userId, newContent);
 
@@ -118,6 +133,13 @@ export function setupSocketHandlers(io: Server) {
     // 6. Client Event: delete_message
     socket.on('delete_message', async (data: { messageId: string }, callback?: Function) => {
       try {
+        if (!checkSocketRateLimit(socket.id, 'delete_message', 10, 5000)) {
+          const errMsg = 'RATE_LIMIT_EXCEEDED: Deleting messages too quickly';
+          socket.emit('error', { message: errMsg });
+          if (callback) callback({ error: errMsg });
+          return;
+        }
+
         const { messageId } = data || {};
         const deletedMessage = await messageService.deleteMessage(messageId, userId);
 
@@ -191,6 +213,13 @@ export function setupSocketHandlers(io: Server) {
     // 10. Client Event: add_reaction
     socket.on('add_reaction', async (data: { messageId: string; emoji: string }, callback?: Function) => {
       try {
+        if (!checkSocketRateLimit(socket.id, 'add_reaction', 15, 5000)) {
+          const errMsg = 'RATE_LIMIT_EXCEEDED: Adding reactions too quickly';
+          socket.emit('error', { message: errMsg });
+          if (callback) callback({ error: errMsg });
+          return;
+        }
+
         const { messageId, emoji } = data || {};
         const { reaction, universeId } = await messageService.addReaction(messageId, userId, emoji);
 
@@ -210,6 +239,13 @@ export function setupSocketHandlers(io: Server) {
     // 11. Client Event: remove_reaction
     socket.on('remove_reaction', async (data: { messageId: string }, callback?: Function) => {
       try {
+        if (!checkSocketRateLimit(socket.id, 'remove_reaction', 15, 5000)) {
+          const errMsg = 'RATE_LIMIT_EXCEEDED: Removing reactions too quickly';
+          socket.emit('error', { message: errMsg });
+          if (callback) callback({ error: errMsg });
+          return;
+        }
+
         const { messageId } = data || {};
         const { universeId } = await messageService.removeReaction(messageId, userId);
 
@@ -228,6 +264,7 @@ export function setupSocketHandlers(io: Server) {
 
     // 12. Handle Disconnect
     socket.on('disconnect', async () => {
+      cleanupSocketRateLimits(socket.id);
       const transitionedOffline = presenceService.removeSession(userId, socket.id);
       if (transitionedOffline) {
         try {

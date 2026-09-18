@@ -1,7 +1,6 @@
 import { Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'ourverse-secret-key-change-in-production';
+import { JWT_SECRET } from '../config/jwtConfig.js';
 
 export interface AuthenticatedSocket extends Socket {
   data: {

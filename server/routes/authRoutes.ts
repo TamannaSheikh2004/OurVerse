@@ -5,9 +5,10 @@ import prisma from '../db/prisma.js';
 import { hashPassword, verifyPassword, hashRecoveryKey, verifyRecoveryKey } from '../utils/crypto.js';
 import { generateRecoveryKey } from '../utils/keyGen.js';
 import { authenticateToken, AuthRequest } from '../middleware/authMiddleware.js';
+import { authLimiter, registerLimiter } from '../middleware/rateLimiter.js';
+import { JWT_SECRET } from '../config/jwtConfig.js';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'ourverse_cosmic_jwt_secret_key_2026_super_secure';
 
 // Input Validation Schemas
 const registerSchema = z.object({
@@ -54,7 +55,7 @@ function sanitizeUser(user: { id: string; username: string; displayName: string 
  * POST /api/auth/register
  * Register a new user without email or phone number.
  */
-router.post('/register', async (req: AuthRequest, res: Response) => {
+router.post('/register', registerLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const parseResult = registerSchema.safeParse(req.body);
     if (!parseResult.success) {
@@ -137,7 +138,7 @@ router.post('/register', async (req: AuthRequest, res: Response) => {
  * POST /api/auth/login
  * Authenticate with Username + Password
  */
-router.post('/login', async (req: AuthRequest, res: Response) => {
+router.post('/login', authLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const parseResult = loginSchema.safeParse(req.body);
     if (!parseResult.success) {
@@ -181,7 +182,7 @@ router.post('/login', async (req: AuthRequest, res: Response) => {
  * POST /api/auth/recover
  * Password recovery via Username + Recovery Key + New Password
  */
-router.post('/recover', async (req: AuthRequest, res: Response) => {
+router.post('/recover', authLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const parseResult = recoverSchema.safeParse(req.body);
     if (!parseResult.success) {

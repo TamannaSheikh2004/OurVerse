@@ -1,6 +1,7 @@
 import http from 'http';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { Server as SocketIOServer } from 'socket.io';
 import authRoutes from './routes/authRoutes.js';
@@ -26,6 +27,8 @@ if (isProduction) {
 }
 
 export const app = express();
+app.set('trust proxy', 1);
+
 export const server = http.createServer(app);
 
 const PORT = process.env.PORT || 4000;
@@ -34,6 +37,25 @@ const PORT = process.env.PORT || 4000;
 const allowedOrigins = isProduction && frontendUrl
   ? [frontendUrl.replace(/\/$/, '')]
   : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: isProduction
+        ? ["'self'"]
+        : ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+      connectSrc: ["'self'", 'ws:', 'wss:', 'http:', 'https:'],
+      frameAncestors: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+    },
+  },
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 
 app.use(cors({
   origin: (origin, callback) => {
